@@ -72,7 +72,7 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
                 x = element;
             }
         });
-        console.log(x);
+   
         this.setState({
             Title: x.Title,
             DepartmentId: x.DepartmentId,
@@ -84,8 +84,7 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
         this.setState({
             presentId: Id
         });
-        console.log(this.state);
-        console.log(x);
+        
     }
     async EditNew() {
         var id: number = Number(this.state.presentId);
@@ -105,10 +104,7 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
         let change = {};
         change[e.target.name] = e.target.value;
         this.setState(change);
-        console.log(e.target.name);
-        console.log(e.target.value);
-        console.log(this.state.Role);
-        console.log(this.state.Jobtype);
+        
     }
         
     async componentDidMount() {
@@ -125,19 +121,19 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
         })
     }
 
-
+    //hello
     async getItems() {
-        console.log('dwdwdwd');
+        
         
         const items: any[] = await sp.web.lists.getByTitle('Employee OnBoard').items.getAll();
         
         this.setState({
             data: items
         });
-        console.log(this.state.data);
+       
     }
     handleRoleDropdown(e) {
-        console.log(e.target.value);
+        
     }
 
   public render(): React.ReactElement<IPnpCrudProps> {
