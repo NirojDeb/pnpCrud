@@ -6,10 +6,45 @@ import styles from './PnpCrud.module.scss';
 import { IPnpCrudProps } from './IPnpCrudProps';
 import { escape } from '@microsoft/sp-lodash-subset';
 import { Log } from '@microsoft/sp-core-library';
+import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
+import { PeoplePickerItem } from 'office-ui-fabric-react';
+import { SPOperations } from '../Services/SPOps'
 
+/*export interface IPeople {
+    DepartmentId: number;
+    Jobtype: string;
+    ManagerId: number;
+    Title: string;
+    Lastname: string;
+    Role: string;
+    Id: number;
+}
+*/
+export class People{
+    DepartmentId: number;
+    Jobtype: string;
+    ManagerId: number;
+    Title: string;
+    Lastname: string;
+    Role: string;
+    Id: number;
+    
+    constructor(id, departmentId, jobtype, managerId, lastname, role, title) {
+        this.DepartmentId = departmentId;
+        this.Jobtype = jobtype;
+        this.ManagerId = managerId;
+        this.Title = title;
+        this.Lastname = lastname;
+        this.Role = role;
+        this.Id = id;
+    }
+}
+
+
+//<input type="" name="ManagerId" value={this.state.ManagerId} onChange={event => this.handleChange(event)} />
 export interface ICrudState {
     data: any,
-    filler: any,
+    
     Title: string,
     Lastname: string,
     Jobtype: string,
@@ -18,16 +53,19 @@ export interface ICrudState {
     DepartmentId: string,
     presentId: string,
     roleChoices: any,
-    JobtypeChoice:any
+    JobtypeChoice: any,
+    newValue: any,
 
-}
+
+} 
 
 export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> {
+    employeeService: SPOperations = new SPOperations();;
+  
     constructor(props) {
         super(props);
         this.state = {
-            data: [],
-            filler: [],
+            data:[],
             Title: '',
             Lastname: '',
             Jobtype: '',
@@ -36,14 +74,17 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
             DepartmentId: '',
             presentId: '',
             roleChoices: [],
-            JobtypeChoice:[]
+            JobtypeChoice: [],
+            newValue: [],
+       
         }
         this.createItem = this.createItem.bind(this);
         this.DeleteItem = this.DeleteItem.bind(this);
         this.EditItem = this.EditItem.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.EditNew = this.EditNew.bind(this);
-        this.handleRoleDropdown = this.handleRoleDropdown.bind(this);
+      
+        this.handlePeople = this.handlePeople.bind(this);
     }
     async createItem() {
         var newItem = {
@@ -52,19 +93,30 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
             Jobtype: this.state.Jobtype,
             DepartmentId: this.state.DepartmentId,
             Role: this.state.Role,
-            ManagerId: this.state.ManagerId
+            ManagerId: this.state.newValue.Id
         }
 
         console.log(this.state);
         await sp.web.lists.getByTitle('Employee OnBoard').items.add(newItem);
         this.getItems();
-        
-
     }
+
+    async handlePeople(items:any) {
+        console.log(items[0]);
+        const user = await sp.web.siteUsers.getByLoginName(items[0].loginName).get();
+        console.log(user);
+        const user2 = await sp.web.siteUsers.getByEmail(user.Email).get();
+        console.log(user2);
+        this.setState({
+            newValue:user2
+        })
+    }
+
     async DeleteItem(Id) {
         await sp.web.lists.getByTitle('Employee OnBoard').items.getById(Id).delete();
         this.getItems();
     }
+    
     EditItem(Id) {
         var x;
         this.state.data.forEach(element => {
@@ -86,6 +138,7 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
         });
         
     }
+    
     async EditNew() {
         var id: number = Number(this.state.presentId);
         var newItem = {
@@ -98,6 +151,7 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
         }
         await sp.web.lists.getByTitle('Employee OnBoard').items.getById(id).update(newItem);
         this.getItems();
+        
 
     }
     handleChange(e) {
@@ -106,35 +160,40 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
         this.setState(change);
         
     }
-        
+
     async componentDidMount() {
         this.getItems();
         const items:any = await sp.web.lists.getByTitle('Employee OnBoard').fields.getByInternalNameOrTitle('Role').select('Choices,ID').get();
-        
-        this.setState({
-            roleChoices:items.Choices
-        })
-
+       
         const jt: any = await sp.web.lists.getByTitle('Employee OnBoard').fields.getByInternalNameOrTitle('Jobtype').select('Choices,ID').get();
         this.setState({
-            JobtypeChoice:jt.Choices
+            JobtypeChoice: jt.Choices,
+            roleChoices: items.Choices
         })
     }
-
-    //hello
+ 
+   
     async getItems() {
         
-        
-        const items: any[] = await sp.web.lists.getByTitle('Employee OnBoard').items.getAll();
-        
-        this.setState({
-            data: items
+
+
+        const items = await sp.web.lists.getByTitle('Employee OnBoard').items.getAll();
+        console.log(items)
+        let newLog = [];
+        items.forEach(async (item) => {
+
+            var user = await sp.web.siteUsers.getById(item.ManagerId).get();
+            item['user'] = user;
+            newLog.push(item);
+            this.setState({
+                data: newLog
+            });
+            
         });
-       
-    }
-    handleRoleDropdown(e) {
+        console.log(newLog)
         
     }
+   
 
   public render(): React.ReactElement<IPnpCrudProps> {
       return (
@@ -160,7 +219,7 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
                                         <td>{d.Jobtype}</td>
                                         <td>{d.DepartmentId}</td>
                                         <td>{d.Role}</td>
-                                        <td>{d.ManagerId}</td>
+                                        <td>{d.user.Title}</td>
                                         <td><button onClick={i => this.DeleteItem(d.Id)}>DELETE</button></td>
                                     </tr>
                                 ))}
@@ -182,10 +241,11 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
                                           </select>
                                       </td>
                                   
-                                    <td><input type="" name="ManagerId" value={this.state.ManagerId} onChange={event => this.handleChange(event)} /></td>
+                                   <td><PeoplePicker titleText={"Employee Name"} placeholder="Enter" onChange={this.handlePeople} context={this.props.context}></PeoplePicker></td>
                                 </tr>
 
-                            </table>
+                          </table>
+                          
                             <button onClick={this.createItem}>Create</button>
                             <button onClick={this.EditNew}>Edit</button>
                       </div>
