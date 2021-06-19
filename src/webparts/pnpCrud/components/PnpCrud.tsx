@@ -8,7 +8,7 @@ import { escape } from '@microsoft/sp-lodash-subset';
 import { Log } from '@microsoft/sp-core-library';
 import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import { PeoplePickerItem } from 'office-ui-fabric-react';
-import { SPOperations } from '../Services/SPOps'
+import { SPOperations } from '../Services/EmployeeService'
 import  {Form}  from './Form';
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { Dropdown, DropdownMenuItemType, IDropdownStyles, IDropdownOption } from '@fluentui/react/lib/Dropdown';
