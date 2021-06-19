@@ -9,7 +9,9 @@ import { Log } from '@microsoft/sp-core-library';
 import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import { PeoplePickerItem } from 'office-ui-fabric-react';
 import { SPOperations } from '../Services/SPOps'
-
+import  {Form}  from './Form';
+import { WebPartContext } from '@microsoft/sp-webpart-base';
+import { Dropdown, DropdownMenuItemType, IDropdownStyles, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 
 export class People{
     DepartmentId: number;
@@ -19,6 +21,7 @@ export class People{
     Lastname: string;
     Role: string;
     Id: number;
+    
 
     
     constructor(id, departmentId, jobtype, managerId, lastname, role, title) {
@@ -32,7 +35,26 @@ export class People{
         
     }
 }
+export interface IUnderstandStateComponentProps {
+    title: string;
+}
 
+export interface IFormProps{
+   
+    context:WebPartContext;
+    Title: string,
+    Lastname: string,
+    Jobtype: string,
+    Role: string,
+    jobChoices:IDropdownOption[],
+    rChoices:IDropdownOption[],
+    depChoices:IDropdownOption[],
+    depId:string,
+    CreateFunction(any):void,
+    b:boolean,
+    defaultUser:string[]
+    
+}
 
 //<input type="" name="ManagerId" value={this.state.ManagerId} onChange={event => this.handleChange(event)} />
 export interface ICrudState {
@@ -49,7 +71,13 @@ export interface ICrudState {
     newValue: any,
     DepartmentChoices: {},
     Dep: string[],
-    revMap: {}
+    revMap: {},
+    jtChoices:IDropdownOption[],
+    depChoices:IDropdownOption[],
+    rChoices:IDropdownOption[],
+    mode:string,
+    toggle:boolean,
+    presentUser:any
 
 } 
 
@@ -72,15 +100,24 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
             newValue: [],
             DepartmentChoices: {},
             Dep: [],
-            revMap: {}
+            revMap: {},
+            jtChoices:[],
+            rChoices:[],
+            depChoices:[],
+            mode:'',
+            toggle:false,
+            presentUser:[]
+
         }
 
         this.createItem = this.createItem.bind(this);
         this.DeleteItem = this.DeleteItem.bind(this);
         this.EditItem = this.EditItem.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+       
         this.EditNew = this.EditNew.bind(this);
-        this.handlePeople = this.handlePeople.bind(this);
+        
+        this.CreateFunction=this.CreateFunction.bind(this);
+        const form = React.createRef();
     }
 
     private async createItem(): Promise<any> {
@@ -93,15 +130,10 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
         await this.employeeService.CreateItem(e);
         
         this.getItems();
+        
     }
 
-    private  async handlePeople(items:any):Promise<any> {
-      
-        const user = await this.employeeService.GetUserByLoginName(items[0].loginName);
-        this.setState({
-            newValue: user
-        });
-    }
+  
 
     private  async DeleteItem(Id):Promise<any> {
         await this.employeeService.DeleteItem(Id);
@@ -109,24 +141,32 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
     }
     
     private  EditItem(Id):void  {
+        
         var x;
+        
         this.state.data.forEach(element => {
             if (element.Id == Id) {
                 x = element;
             }
         });
-   
+        console.log(x.user);
+        var y=[x.user.LoginName];
+        console.log(x);
+        
         this.setState({
             Title: x.Title,
             DepartmentId: x.DepartmentId,
             Lastname: x.Lastname,
             ManagerId: x.ManagerId,
             Role: x.Role,
-            Jobtype: x.Jobtype
+            Jobtype: x.Jobtype,
+            presentUser:y,
+            presentId: Id,
+            mode:'edit',
+            toggle:true
         });
-        this.setState({
-            presentId: Id
-        });
+        
+    
         
     }
     
@@ -135,56 +175,139 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
         let e: People = new People(1, this.state.DepartmentId, this.state.Jobtype, this.state.newValue.Id, this.state.Lastname, this.state.Role, this.state.Title);
         await this.employeeService.EditItem(id, e);
         this.getItems();
+        this.setState({
+            mode:'create'
+        });
+
   
-    }
-    private  handleChange(e):void {
-        let change = {};
-        change[e.target.name] = e.target.value;
-        this.setState(change);
+    }    
+ 
+   
+    private async getItems(): Promise<any> {
+        const items = await this.employeeService.GetAllItems();
+        const newLog = await this.NewFunc(items);
+      
         
+        this.setState({
+            data: newLog
+        });
+        
+        console.log(newLog);
     }
 
-    async componentDidMount():Promise<any> {
+    public async NewFunc(items: any): Promise<any> {
+
+        let newLog = [];
+        for(let item of items) {
+
+            var user = await this.employeeService.GetUser(item.ManagerId);
+            item['user'] = user;
+            newLog.push(item);
+        }
+        return newLog;
+
+    }
+
+    public async componentDidMount(): Promise<any> {
         this.getItems();
         const roles: any = await this.employeeService.GetRoles();
         const jt: any = await this.employeeService.GetJobTypes();
         const res: [] = await this.employeeService.GetDepartements();
         let x = {};
         let y = [];
-        let z = {}
+        let z = {};
+
+        let q:any=[];
+        let w:any=[];
+        let e:any=[];
+
+        for(var jb of jt.Choices)
+        {
+            var temp:IDropdownOption={
+                key:jb,
+                text:jb
+            };
+            console.log(temp);
+            
+            q.push(temp);
+        }
+
+        for (var r of roles.Choices)
+        {
+            var temp:IDropdownOption={
+                key:r,
+                text:r
+            }
+            w.push(temp);
+        }
+
+        for (var p of res)
+        {
+            var temp:IDropdownOption={
+                key:p[1],
+                text:p[0],
+            }
+            e.push(temp);
+        }
+
+     
+        
+
         res.forEach((r) => {
             x[r[0]] = r[1];
             y.push(r[0]);
             z[r[1]] = r[0];
 
-        })
+        });
+        console.log(q);
         
+
         this.setState({
             JobtypeChoice: jt.Choices,
             roleChoices: roles.Choices,
             DepartmentChoices: x,
             Dep: y,
-            revMap:z
+            revMap: z,
+            jtChoices:q,
+            rChoices:w,
+            depChoices:e,
+            mode:'create'
         });
+        console.log(this.state.DepartmentChoices)
+
+    }
+
+    public async  CreateFunction(value){
+        console.log(value);
+        console.log('heeeee');
+        console.log(value.Department);
+        
+        var d=value.Department.toString();
+        console.log(d);
+        
+        var depId=this.state.DepartmentChoices[d];
+        const user = await this.employeeService.GetUserByLoginName(value.loginName);
+        this.setState({
+            Title:value.Title,
+            DepartmentId:depId,
+            Lastname:value.Lastname,
+            Role:value.Role,
+            Jobtype:value.Jobtype,
+            newValue:user,
+            toggle:false
+
+        });
+        if(this.state.mode=='create')
+        {
+            this.createItem();
+        }
+        else{
+            this.EditNew();
+        }
+        
+        
         
     }
- 
-   
-    private async getItems(): Promise<any> {
-        const items = await this.employeeService.GetAllItems();
-        let newLog = [];
-        await items.forEach(async (item) => {
-
-            var user = await this.employeeService.GetUser(item.ManagerId);
-            item['user'] = user;
-            newLog.push(item);
-            this.setState({
-                data: newLog
-            });
-            
-        });
-    }
-   
 
   public render(): React.ReactElement<IPnpCrudProps> {
       return (
@@ -214,38 +337,15 @@ export default class PnpCrud extends React.Component<IPnpCrudProps, ICrudState> 
                                         <td><button onClick={i => this.DeleteItem(d.Id)}>DELETE</button></td>
                                     </tr>
                                 ))}
-                                <tr>
-                                    <td><input type="" name="Title" value={this.state.Title} onChange={event => this.handleChange(event)} /></td>
-                                    <td><input type="" name="Lastname" value={this.state.Lastname} onChange={event => this.handleChange(event)} /></td>
-                                    
-                                    <td>
-                                      <select onChange={event => this.handleChange(event)} name="Jobtype" value={this.state.Jobtype}>
-                                              {this.state.JobtypeChoice.map((jt) => <option value={jt}>{jt}</option>)}
-                                      </select>
-                                    </td>
-
-                                  <td>
-                                      <select onChange={event => this.handleChange(event)} name="DepartmentId" value={this.state.DepartmentId}>
-                                          {this.state.Dep.map((dep) => <option value={this.state.DepartmentChoices[dep]}>{dep}</option>)}
-                                      </select>
-                                    </td>
-
-                                  <td>
-                                      <select onChange={event => this.handleChange(event)} name="Role" value={this.state.Role}>
-                                          {this.state.roleChoices.map((rc) => <option value={rc}>{rc}</option>)}
-                                          </select>
-                                      </td>
-                                  
-                                   <td><PeoplePicker titleText={"Employee Name"} placeholder="Enter" onChange={this.handlePeople} context={this.props.context}></PeoplePicker></td>
-                                </tr>
+                                
 
                           </table>
                           
-                            <button onClick={this.createItem}>Create</button>
-                            <button onClick={this.EditNew}>Edit</button>
+                            
                       </div>
                   </div>
-               </div>
+              </div>
+           <Form CreateFunction={this.CreateFunction} Title={this.state.Title} depId={this.state.DepartmentId} Lastname={this.state.Lastname} Jobtype={this.state.Jobtype}  Role={this.state.Role} context={this.props.context} jobChoices={this.state.jtChoices} rChoices={this.state.rChoices} depChoices={this.state.depChoices} b={this.state.toggle} defaultUser={this.state.presentUser}/>
           </div>
     );
   }

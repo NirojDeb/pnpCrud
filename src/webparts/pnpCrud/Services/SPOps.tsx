@@ -14,12 +14,15 @@ import { People } from '../components/PnpCrud';
      async GetAllItems(): Promise<People[]> {
          let x: People[]=[];
          const items: any[] = await sp.web.lists.getByTitle('Employee OnBoard').items.getAll();
+         const items2: any[] = await sp.web.lists.getByTitle('Employee OnBoard').items.expand('Department').select('Department/Title').get();
+         console.log(items2);
          await items.forEach(async (item) => {
              
              let e = new People(item.Id, item.DepartmentId, item.Jobtype, item.ManagerId, item.Lastname, item.Role, item.Title);
              x.push(e);
          });
          return x;
+
      }
 
      async GetUser(id): Promise<any> {
@@ -72,6 +75,7 @@ import { People } from '../components/PnpCrud';
 
      async GetDepartements(): Promise<any> {
          var res = await sp.web.lists.getByTitle('Department').items.select("Title", "Id").get();
+         
          var mapping = [];
          res.forEach((r) => {
              let dep = [r.Title, r.Id];
@@ -80,4 +84,4 @@ import { People } from '../components/PnpCrud';
          return mapping;
      }
 
-  }
+}
